@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.lopezezequiel</groupId>
+    <artifactId>EasyPDFForm</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>Easy mapper for pdf forms</description>
+    <url>lopezezequiel.com/easy-pdf-form</url>
+
+    <developers>
+        <developer>
+            <name>López Ricardo Ezequiel</name>
+            <email>mail@lopezezequiel.com</email>
+            <url>lopezezequiel.com</url>
+        </developer>
+    </developers>
+
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <scm>
+        <connection>scm:git:git://github.com/lopezezequiel/easy-pdf-form.git</connection>
+        <developerConnection>scm:git:ssh://github.com:lopezezequiel/easy-pdf-form.git</developerConnection>
+        <url>http://github.com:lopezezequiel/easy-pdf-form.git/tree/master</url>
+    </scm>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>2.0.17</version>
+        </dependency>
+    </dependencies>
+
+</project>
