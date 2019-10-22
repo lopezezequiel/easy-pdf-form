@@ -1,7 +1,9 @@
-import exception.EasyPDFFormException;
-import exception.EasyPDFFormNullFieldException;
-import exception.EasyPDFFormTagNotFoundException;
-import exception.EasyPDFFormTypeException;
+package com.lopezezequiel.EasyPDFForm;
+
+import com.lopezezequiel.EasyPDFForm.exception.EasyPDFFormException;
+import com.lopezezequiel.EasyPDFForm.exception.EasyPDFFormNullFieldException;
+import com.lopezezequiel.EasyPDFForm.exception.EasyPDFFormTagNotFoundException;
+import com.lopezezequiel.EasyPDFForm.exception.EasyPDFFormTypeException;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
 import org.apache.pdfbox.pdmodel.interactive.form.*;
@@ -176,10 +178,11 @@ public class EasyPDFForm {
 				this.setDefaultValue(field);
 			}
 
-
-			//check required fields
-			if(field.isAnnotationPresent(NotNull.class) && field.get(this) == null) {
-				throw new EasyPDFFormNullFieldException(field.getName());
+			if(field.get(this) == null) {
+				if(field.isAnnotationPresent(NotNull.class)) {
+					throw new EasyPDFFormNullFieldException(field.getName());
+				}
+				continue;
 			}
 
 			//get pdField
@@ -197,7 +200,9 @@ public class EasyPDFForm {
 
  			if(field.isAnnotationPresent(Lock.class)) {
 				pdField.setReadOnly(true);
-			} else if(field.isAnnotationPresent(Unlock.class)) {
+			}
+
+ 			if(field.isAnnotationPresent(Unlock.class)) {
 				pdField.setReadOnly(false);
 			}
 

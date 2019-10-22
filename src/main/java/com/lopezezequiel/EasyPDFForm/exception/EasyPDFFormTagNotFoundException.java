@@ -1,4 +1,4 @@
-package exception;
+package com.lopezezequiel.EasyPDFForm.exception;
 
 public class EasyPDFFormTagNotFoundException extends EasyPDFFormException {
 
