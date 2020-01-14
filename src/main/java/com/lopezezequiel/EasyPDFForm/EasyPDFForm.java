@@ -1,41 +1,76 @@
 package com.lopezezequiel.EasyPDFForm;
 
-import com.lopezezequiel.EasyPDFForm.exception.EasyPDFFormException;
-import com.lopezezequiel.EasyPDFForm.exception.EasyPDFFormNullFieldException;
+
+import com.lopezezequiel.EasyPDFForm.annotation.Ignore;
+import com.lopezezequiel.EasyPDFForm.annotation.Lock;
+import com.lopezezequiel.EasyPDFForm.annotation.Tag;
+import com.lopezezequiel.EasyPDFForm.annotation.Unlock;
 import com.lopezezequiel.EasyPDFForm.exception.EasyPDFFormTagNotFoundException;
-import com.lopezezequiel.EasyPDFForm.exception.EasyPDFFormTypeException;
+import com.lopezezequiel.EasyPDFForm.setter.*;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
 import org.apache.pdfbox.pdmodel.interactive.form.*;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
-
 public class EasyPDFForm {
 
-	public String getName() {
-		Form form = this.getClass().getAnnotation(Form.class);
-	    return (form == null) ? null : form.name();
-	}
-	
-	private String getInputPath() {
-		//TODO what if annotation does not exists?
-	    return this.getClass().getAnnotation(Form.class).path();
-	}
+	private Object form;
+	private String path;
 
-	private void validateType(Field field, Class cls) throws EasyPDFFormTypeException {
-		Boolean valid = field.getType().isAssignableFrom(cls);
 
-		if(!valid) {
-			throw new EasyPDFFormTypeException(field.getName(), cls);
+	public void showFields() throws Exception {
+		PDDocument pdDocument = this.getDocument(this.path);
+		PDAcroForm pdAcroForm = this.getAcroForm(pdDocument);
+
+		List<PDField> fields = pdAcroForm.getFields();
+
+
+		for(PDField field: fields) {
+			String pdType = "Unknown";
+			String values = "";
+
+			if(field instanceof PDCheckBox) {
+				pdType = "CheckBox";
+			} else if(field instanceof PDComboBox) {
+				pdType = "ComboBox";
+			} else if(field instanceof PDTextField) {
+				pdType = "TextField";
+			} else if(field instanceof PDListBox) {
+				pdType = "ListBox";
+			} else if(field instanceof PDRadioButton) {
+				pdType = "RadioButton";
+			} else if(field instanceof PDSignatureField) {
+                pdType = "SignatureField";
+            }
+
+			System.out.println(String.format("%s : %s = %s - Values: %s", pdType, field.getFullyQualifiedName(), field.getValueAsString(), values));
 		}
+	}
+
+
+	public EasyPDFForm(Object form, String path) {
+		this.form = form;
+		this.path = path;
+	}
+
+    private PDDocument getDocument(String path) throws Exception {
+        File inputFile = new File(path);
+        return PDDocument.load(inputFile);
+    }
+
+	private PDAcroForm getAcroForm(PDDocument pdDocument) throws Exception {
+		PDDocumentCatalog docCatalog = pdDocument.getDocumentCatalog();
+		return docCatalog.getAcroForm();
+	}
+
+	private Boolean ignoreField(Field field) {
+		return field.isAnnotationPresent(Ignore.class);
 	}
 
 	//get tag name, default is field name
@@ -45,229 +80,118 @@ public class EasyPDFForm {
 				field.getName();
 	}
 
-
-	private void handleComboBox(Field field, PDComboBox pdComboBox) throws EasyPDFFormTypeException, IllegalAccessException, IOException {
-		//must be String
-		this.validateType(field, String.class);
-		String value = (String) field.get(this);
-
-		if(field.isAnnotationPresent(Options.class)) {
-			String[] options = field.getAnnotation(Options.class).values();
-			pdComboBox.setOptions(Arrays.asList(options), Arrays.asList(options));
-		}
-
-		List<String> opt = pdComboBox.getOptions();
-
-		if(!pdComboBox.getOptions().contains(value)) {
-			throw 	new IllegalArgumentException();
-		}
-
-		pdComboBox.setValue(value);
-	}
-
-	private Boolean isNumber(Object value) {
-		return (value instanceof Integer ||
-				value instanceof Long ||
-				value instanceof Float ||
-				value instanceof Double);
-	}
-
-	private SimpleDateFormat getDateFormatter(Field field) {
-		String format = field.isAnnotationPresent(DateFormat.class) ?
-				((DateFormat) field.getAnnotation(DateFormat.class)).value() :
-				"yyyy/MM/dd";
-		return new SimpleDateFormat(format);
-	}
-
-	private void handleTextField(Field field, PDTextField pdTextField) throws IllegalAccessException, IOException {
-
-		Object value = field.get(this);
-        String stringValue = null;
-
-		if(field.getType().isAssignableFrom(String.class)) {
-            stringValue = (String) value;
-
-			if(field.isAnnotationPresent(ValidateRegex.class)) {
-				ValidateRegex validateRegex = (ValidateRegex) field.getAnnotation(ValidateRegex.class);
-				Boolean valid = stringValue != null && stringValue.matches(validateRegex.value());
-				if(!valid) {
-					throw  new IllegalArgumentException();
-				}
-			}
-
-			//TODO make pattern better
-			if(field.isAnnotationPresent(Email.class)) {
-				String emailPattern = "[\\w!#$%&’*+/=?`{|}~^-]+(?:\\.[\\w!#$%&’*+/=?`{|}~^-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,6}";
-				Boolean valid = stringValue != null && stringValue.matches(emailPattern);
-				if(!valid) {
-					throw  new IllegalArgumentException();
-				}
-			}
-
-		} else if(this.isNumber(value)) {
-		    stringValue = String.valueOf(value);
-
-			if(field.isAnnotationPresent(Min.class)) {
-				Min min = field.getAnnotation(Min.class);
-				if((Double) value < min.value()) {
-					throw  new IllegalArgumentException();
-				}
-			}
-
-			if(field.isAnnotationPresent(Max.class)) {
-				Max max = field.getAnnotation(Max.class);
-				if((Double) value > max.value()) {
-					throw  new IllegalArgumentException();
-				}
-			}
-		} else if(field.getType().isAssignableFrom(Date.class)) {
-			stringValue = getDateFormatter(field).format((Date) value);
-        }
-
-		pdTextField.setValue(stringValue);
-	}
-
-	private void handleCheckBox(Field field, PDCheckBox pdCheckBox) throws IllegalAccessException, IOException {
-		Boolean value = (Boolean) field.get(this);
-		if(value != null) {
-			if(value) {
-				pdCheckBox.check();
-			} else {
-				pdCheckBox.unCheck();
-			}
-		}
-	}
-
-	private void setDefaultValue(Field field) throws IllegalAccessException, ParseException {
-		if(field.get(this) != null) {
-			return;
-		}
-
-		String value = field.getAnnotation(Default.class).value();
-
-		if(field.getType().isAssignableFrom(Boolean.class)) {
-			field.set(this, Boolean.parseBoolean(value));
-		} else if(field.getType().isAssignableFrom(String.class)) {
-			field.set(this, value);
-		} else if(field.getType().isAssignableFrom(Integer.class)) {
-			field.set(this, Integer.parseInt(value));
-		} else if(field.getType().isAssignableFrom(Long.class)) {
-         	field.set(this, Long.parseLong(value));
-		} else if(field.getType().isAssignableFrom(Float.class)) {
-			field.set(this, Float.parseFloat(value));
-		} else if(field.getType().isAssignableFrom(Double.class)) {
-         	field.set(this, Double.parseDouble(value));
-		} else if(field.getType().isAssignableFrom(Date.class)) {
-			field.set(this, this.getDateFormatter(field).parse(value));
-		}
-
-	}
-
-	private void setValues(PDAcroForm acroForm) throws IllegalArgumentException, IllegalAccessException, IOException, ParseException, EasyPDFFormException {
-
-		for(Field field : this.getClass().getDeclaredFields()) {
-			field.setAccessible(true);
-
-			//skip ignored fields
-			if(field.isAnnotationPresent(Ignore.class)) {
-				continue;
-			}
-
-			//set default value
-			if(field.isAnnotationPresent(Default.class)) {
-				this.setDefaultValue(field);
-			}
-
-			if(field.get(this) == null) {
-				if(field.isAnnotationPresent(NotNull.class)) {
-					throw new EasyPDFFormNullFieldException(field.getName());
-				}
-				continue;
-			}
-
-			//get pdField
-			String tag = this.getTagName(field);
-			PDField pdField = this.getPDField(acroForm, tag);
-
-			//handle different pdfield types
-			if(pdField instanceof PDTextField) {
-				this.handleTextField(field, (PDTextField) pdField);
-			} else if(pdField instanceof PDComboBox) {
-				this.handleComboBox(field, (PDComboBox) pdField);
-			} else if(pdField instanceof  PDCheckBox) {
-				this.handleCheckBox(field, (PDCheckBox) pdField);
-			}
-
- 			if(field.isAnnotationPresent(Lock.class)) {
-				pdField.setReadOnly(true);
-			}
-
- 			if(field.isAnnotationPresent(Unlock.class)) {
-				pdField.setReadOnly(false);
-			}
-
-		}
-	}
-
 	private PDField getPDField(PDAcroForm acroForm, String tag) throws EasyPDFFormTagNotFoundException {
 		PDField pdField = acroForm.getField(tag);
-
-		if(pdField == null) {
-			throw new EasyPDFFormTagNotFoundException(tag);
-		}
-
 		return  pdField;
 	}
 
 
-	public void showFields() throws IOException {
-		PDDocument pdDocument = this.getDocument();
-		PDAcroForm pdAcroForm = this.getAcroForm(pdDocument);
+	private GenericSetter getSetter(PDField pdField) {
 
-		List<PDField> fields = pdAcroForm.getFields();
-
-
-		for(PDField field: fields) {
-            String pdType = "Unknown";
-
-            if(field instanceof PDCheckBox) {
-                pdType = "CheckBox";
-            } else if(field instanceof PDComboBox) {
-                pdType = "ComboBox";
-            } else if(field instanceof PDTextField) {
-                pdType = "TextField";
-            } else if(field instanceof PDListBox) {
-                pdType = "ListBox";
-            } else if(field instanceof PDRadioButton) {
-                pdType = "RadioButton";
-            }
-
-            System.out.println(String.format("%s %s = %s", pdType, field.getFullyQualifiedName(), field.getValueAsString()));
+        if(pdField instanceof PDCheckBox) {
+            return new CheckBoxSetter();
+        } else if(pdField instanceof PDComboBox) {
+            return new ComboBoxSetter();
+        } else if(pdField instanceof PDListBox) {
+            return new ListBoxSetter();
+        } else if(pdField instanceof PDRadioButton) {
+            return new RadioButtonSetter();
+        } else if(pdField instanceof PDTextField) {
+            return new TextFieldSetter();
         }
 
+        return null;
+    }
+
+
+	private void setPDField(PDField pdField, Field field, Object form) throws IllegalAccessException, IOException {
+
+	    GenericSetter setter = this.getSetter(pdField);
+
+	    if(setter == null) return;
+
+	    setter.preSet(pdField, field, form);
+
+		if(field.get(form) == null) {
+			setter.setPDField(pdField, field, form);
+		} else if(field.getType().isAssignableFrom(Boolean.class)) {
+			setter.setPDField(pdField, field, form, (Boolean) field.get(form));
+		} else if(field.getType().isAssignableFrom(String.class)) {
+			setter.setPDField(pdField, field, form, field.get(form).toString());
+		} else if(field.getType().isAssignableFrom(Integer.class)) {
+			setter.setPDField(pdField, field, form, (Integer) field.get(form));
+		} else if(field.getType().isAssignableFrom(Long.class)) {
+			setter.setPDField(pdField, field, form, (Long) field.get(form));
+		} else if(field.getType().isAssignableFrom(Float.class)) {
+			setter.setPDField(pdField, field, form, (Float) field.get(form));
+		} else if(field.getType().isAssignableFrom(Double.class)) {
+			setter.setPDField(pdField, field, form, (Double) field.get(form));
+		} else if(field.getType().isAssignableFrom(Date.class)) {
+			setter.setPDField(pdField, field, form, (Date) field.get(form));
+		}
+
 	}
 
-	private PDDocument getDocument() throws IOException {
-		File inputFile = new File(this.getInputPath());
-		return PDDocument.load(inputFile);
+	private void lockField(PDField pdField, Field field, Object form) {
+		if(field.isAnnotationPresent(Lock.class)) {
+			pdField.setReadOnly(true);
+		} else if(field.isAnnotationPresent(Unlock.class)) {
+			pdField.setReadOnly(false);
+		} else if(form.getClass().isAnnotationPresent(Lock.class)) {
+			pdField.setReadOnly(true);
+		} else if(form.getClass().isAnnotationPresent(Unlock.class)) {
+			pdField.setReadOnly(false);
+		}
 	}
 
-	private PDAcroForm getAcroForm(PDDocument pdDocument) throws IOException {
-		PDDocumentCatalog docCatalog = pdDocument.getDocumentCatalog();
-		PDAcroForm acroForm = docCatalog.getAcroForm();
-		return acroForm;
+	private void setFields(Object form, PDAcroForm pdAcroForm) throws Exception {
+
+		for (Field field : form.getClass().getDeclaredFields()) {
+			field.setAccessible(true);
+
+			if(this.ignoreField(field)) {
+				continue;
+			}
+
+			String tag = this.getTagName(field);
+			PDField pdField = this.getPDField(pdAcroForm, tag);
+
+			//skip if tag does not exists
+			if(pdField == null) {
+				continue;
+			}
+
+			//seteo el valor
+			this.setPDField(pdField, field, form);
+
+			//bloqueo el campo si es necesario
+			this.lockField(pdField, field, form);
+		}
 	}
-	
 
-	public void save(String outputPath) throws EasyPDFFormException, IOException, ParseException, IllegalAccessException {
-		PDDocument pdDocument = this.getDocument();
-		PDAcroForm pdAcroForm = this.getAcroForm(pdDocument);
-		this.setValues(pdAcroForm);
+	private PDDocument getFilledDocument() throws Exception {
+        PDDocument pdDocument = this.getDocument(this.path);
+        PDAcroForm pdAcroForm = this.getAcroForm(pdDocument);
+        this.setFields(this.form, pdAcroForm);
+        return  pdDocument;
+    }
 
+	public void save(String outputPath) throws Exception {
+        PDDocument pdDocument = this.getFilledDocument();
 		File outputFile = new File(outputPath);
 		pdDocument.save(outputFile);
 		pdDocument.close();
 	}
+
+    public ByteArrayOutputStream save() throws Exception {
+        PDDocument pdDocument = this.getFilledDocument();
+
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        pdDocument.save(stream);
+		stream.close();
+
+		return stream;
+    }
 	
 
 }

@@ -1,4 +1,4 @@
-package com.lopezezequiel.EasyPDFForm;
+package com.lopezezequiel.EasyPDFForm.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

@@ -1,4 +1,4 @@
-package com.lopezezequiel.EasyPDFForm;
+package com.lopezezequiel.EasyPDFForm.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,7 +6,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.FIELD)
-public @interface ValidateRegex {
-    public String value();
+@Target({ ElementType.FIELD, ElementType.TYPE})
+public @interface Lock {
 }

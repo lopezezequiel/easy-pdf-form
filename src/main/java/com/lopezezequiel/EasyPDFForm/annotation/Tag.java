@@ -1,4 +1,4 @@
-package com.lopezezequiel.EasyPDFForm;
+package com.lopezezequiel.EasyPDFForm.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,6 +7,6 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
-public @interface Options {
-    public String[] values();
+public @interface Tag {
+    public String value();
 }
