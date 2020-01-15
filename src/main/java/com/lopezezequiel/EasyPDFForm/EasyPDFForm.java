@@ -9,8 +9,13 @@ import com.lopezezequiel.EasyPDFForm.exception.EasyPDFFormTagNotFoundException;
 import com.lopezezequiel.EasyPDFForm.setter.*;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDTrueTypeFont;
+import org.apache.pdfbox.pdmodel.font.encoding.Encoding;
+import org.apache.pdfbox.pdmodel.font.encoding.WinAnsiEncoding;
 import org.apache.pdfbox.pdmodel.interactive.form.*;
 
+import javax.security.auth.login.Configuration;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -21,11 +26,11 @@ import java.util.List;
 public class EasyPDFForm {
 
 	private Object form;
-	private String path;
+	private EasyPDFConfiguration configuration;
 
 
 	public void showFields() throws Exception {
-		PDDocument pdDocument = this.getDocument(this.path);
+		PDDocument pdDocument = this.getDocument(this.configuration.getTemplatePath());
 		PDAcroForm pdAcroForm = this.getAcroForm(pdDocument);
 
 		List<PDField> fields = pdAcroForm.getFields();
@@ -53,15 +58,23 @@ public class EasyPDFForm {
 		}
 	}
 
-
-	public EasyPDFForm(Object form, String path) {
+	public EasyPDFForm(Object form, EasyPDFConfiguration configuration) {
 		this.form = form;
-		this.path = path;
+		this.configuration = configuration;
 	}
 
     private PDDocument getDocument(String path) throws Exception {
         File inputFile = new File(path);
-        return PDDocument.load(inputFile);
+        PDDocument pdDocument = PDDocument.load(inputFile);
+
+        // Cargo las fuentes
+        if(this.configuration.getFonts() != null) {
+			for (String fontPath: this.configuration.getFonts()) {
+				PDFont pdFont = PDTrueTypeFont.load(pdDocument, new File(fontPath), WinAnsiEncoding.INSTANCE);
+			}
+		}
+
+        return pdDocument;
     }
 
 	private PDAcroForm getAcroForm(PDDocument pdDocument) throws Exception {
@@ -170,7 +183,7 @@ public class EasyPDFForm {
 	}
 
 	private PDDocument getFilledDocument() throws Exception {
-        PDDocument pdDocument = this.getDocument(this.path);
+        PDDocument pdDocument = this.getDocument(this.configuration.getTemplatePath());
         PDAcroForm pdAcroForm = this.getAcroForm(pdDocument);
         this.setFields(this.form, pdAcroForm);
         return  pdDocument;
