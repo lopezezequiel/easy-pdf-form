@@ -18,7 +18,9 @@ import org.apache.pdfbox.pdmodel.interactive.form.*;
 import javax.security.auth.login.Configuration;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.util.Date;
 import java.util.List;
@@ -30,7 +32,7 @@ public class EasyPDFForm {
 
 
 	public void showFields() throws Exception {
-		PDDocument pdDocument = this.getDocument(this.configuration.getTemplatePath());
+		PDDocument pdDocument = this.getDocument(this.configuration.getTemplate());
 		PDAcroForm pdAcroForm = this.getAcroForm(pdDocument);
 
 		List<PDField> fields = pdAcroForm.getFields();
@@ -63,9 +65,18 @@ public class EasyPDFForm {
 		this.configuration = configuration;
 	}
 
-    private PDDocument getDocument(String path) throws Exception {
-        File inputFile = new File(path);
-        PDDocument pdDocument = PDDocument.load(inputFile);
+	public EasyPDFForm(Object form, InputStream template) {
+		this.form = form;
+		this.configuration = new EasyPDFConfiguration(template);
+	}
+
+	public EasyPDFForm(Object form, String templatePath) throws FileNotFoundException {
+		this.form = form;
+		this.configuration = new EasyPDFConfiguration(templatePath);
+	}
+
+    private PDDocument getDocument(InputStream stream) throws Exception {
+        PDDocument pdDocument = PDDocument.load(stream);
 
         // Cargo las fuentes
         if(this.configuration.getFonts() != null) {
@@ -183,7 +194,7 @@ public class EasyPDFForm {
 	}
 
 	private PDDocument getFilledDocument() throws Exception {
-        PDDocument pdDocument = this.getDocument(this.configuration.getTemplatePath());
+        PDDocument pdDocument = this.getDocument(this.configuration.getTemplate());
         PDAcroForm pdAcroForm = this.getAcroForm(pdDocument);
         this.setFields(this.form, pdAcroForm);
         return  pdDocument;
